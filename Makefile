@@ -57,3 +57,5 @@ LOCAL_CPP_SRCS     = $(PROJECT_DIR)/src/globals.cpp
 ### Do not touch - the path to Arduino.mk, inside the ARDMK_DIR
 include $(ARDMK_DIR)/Arduino.mk
 
+run : upload
+	miniterm /dev/ttyACM0 38400
