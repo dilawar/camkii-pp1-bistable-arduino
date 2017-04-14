@@ -8,3 +8,7 @@ To build and upload to arduino
 
     $ make 
     $ make upload 
+
+# Demo
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/wkYM8w1DPu4" frameborder="0" allowfullscreen></iframe>
