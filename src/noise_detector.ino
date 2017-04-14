@@ -20,9 +20,8 @@
 #define INPUT_GND   A1
 #define INPUT_VCC   A2
 
-#define OUTPUT_PINS_START   7
-#define OUTPUT_PINS_END     12
-#define GROUND_PIN          13
+#define OUTPUT_PINS_START   2
+#define GROUND_PIN          8
 
 /**
  * @brief Keep the running values of signal.
@@ -31,9 +30,8 @@ int signal_[WINDOW_SIZE];
 
 /*  Running mean of signal. */
 float running_mean_ = 0.0;
-int pp1 = 12;
+int pp1 = 10;
 
-float kh1 = 300.0;
 
 double computeMean(  )
 {
@@ -44,6 +42,15 @@ double computeMean(  )
     return running_mean_;
 }
 
+int switchStatus( )
+{
+    int sum = 0;
+    for (size_t i = OUTPUT_PINS_START; i < OUTPUT_PINS_START + 6; i++) 
+        sum += digitalRead( i );
+    return sum;
+}
+
+
 void appendToSignal( int sensorValue )
 {
     for (size_t i = 0; i < WINDOW_SIZE - 1; i++) 
@@ -53,70 +60,103 @@ void appendToSignal( int sensorValue )
 
 int slow( int ca )
 {
-    return 1024 * pow(( ca / kh1 ),  6) / pow(( 1 + pow((ca / kh1 ), 3) ), 2 );
+    float kh1 = 150.0;
+    float frac = pow( ca / kh1, 3.0 );
+    return 1024 * pow(frac, 2) / pow(( 1 + frac), 2 );
 }
 
 int fast( int ca )
 {
-    return 1024 * pow(( ca / kh1 ), 3) / ( 1 + pow((ca / kh1 ), 3) ); 
+    float kh1 = 150.0;
+    float frac = pow( ca / kh1, 3.0 );
+    return 1024 * frac / ( 1 + frac ); 
+}
+
+float activePP1( int ca )
+{
+    float kh2 = 70.0;
+    float frac = pow( ca / kh2, 3.0 );
+    return pp1 * ( 1 + frac ) / frac;
 }
 
 bool isClockWiseNeighbourOn( size_t pin )
 {
-    int pinIndex = (pin + 1) % 6;
-    return HIGH == digitalRead( pinIndex );
+    int pinIndex = (pin - 1 + 6 ) % 6;
+    return (HIGH == digitalRead( pinIndex ));
+}
+
+int compute_phospho_rate( int ca )
+{
+    int state = switchStatus( );
+    return (state * fast( ca ) + ( 6 - state ) * slow( ca ))/6;
+}
+
+int compute_dephospho_rate( int ca )
+{
+    int avgPhosphoRate = compute_phospho_rate( ca );
+    int state = switchStatus( );
+    if( state >= 4 )
+        return pow( avgPhosphoRate , 0.4 );
+
+    else if( state <= 2 )
+        return pow( avgPhosphoRate, 2.0);
+    else 
+        return 2 * avgPhosphoRate;
 }
 
 void system( int sensorValue )
 {
-    int max = 1024;
-
-
-    int rateOn = slow( sensorValue );
-
     // The probability of turning any OUTPUT ON.
-    for( size_t pin = OUTPUT_PINS_START; pin <= OUTPUT_PINS_END; pin++ )
+    for( size_t pin = OUTPUT_PINS_START; pin < OUTPUT_PINS_START + 6; pin++ )
     {
+        int rateOn = 0;
+        Serial.print( digitalRead( pin ) );
+        Serial.print( ':' );
+
         if( isClockWiseNeighbourOn( pin ) )
             rateOn = fast( sensorValue );
+        else
+            rateOn = slow( sensorValue );
 
-        int r = random( 0, 1024 );
-        if( r < rateOn )
+        if( random( 0, 1024 ) < rateOn )
         {
-            if( LOW == digitalRead( pin ) )
-            {
-                digitalWrite( pin, HIGH );
-                delay( 10 );
-                pp1 += 1;
-            }
+            digitalWrite( pin, HIGH );
+            delay( 10 );
         }
+
+        char msg[4];
+        sprintf( msg, "%3d,", rateOn );
+        Serial.print( msg );
     }
 
-    int rateOff = pp1;
-    for( size_t pin = OUTPUT_PINS_START; pin <= OUTPUT_PINS_END; pin++ )
+    // int rateOff = activePP1( sensorValue );
+    int rateOff = compute_dephospho_rate( sensorValue );
+    for( size_t pin = OUTPUT_PINS_START; pin < OUTPUT_PINS_START + 6; pin++ )
     {
-        int r = random( 0, 1024 );
-        if( r < rateOff )
+        if( random(0, 1024) < rateOff )
         {
-            if( HIGH == digitalRead( pin ) )
-            {
-                digitalWrite( pin, LOW );
-                delay( 10 );
-                pp1 -= 1;
-            }
+            digitalWrite( pin, LOW );
+            delay( 10 );
         }
     }
 
     char msg[100];
-    sprintf( msg, "ca=%4d,pp1=%2d,rON=%3d,rOFF=%3d", sensorValue, pp1, rateOn, rateOff );
+#if 0
+    sprintf( msg, "ca=%4d, slow=%3d, fast=%3d", sensorValue, slow( sensorValue )
+            , fast( sensorValue )
+           );
+#else
+    sprintf( msg, "ca=%4d,pp1=%4d,rOFF=%4d", sensorValue, pp1, rateOff );
+#endif
     Serial.print( msg );
 
-    for( size_t i = OUTPUT_PINS_START; i <= OUTPUT_PINS_END; i++)
+    for( size_t i = OUTPUT_PINS_START; i < OUTPUT_PINS_START + 6; i++)
     {
         Serial.print( ' ' );
         Serial.print( digitalRead( i ) );
     }
-    Serial.println( " " );
+    Serial.print( " #On " );
+    Serial.println( switchStatus( ) );
 }
 
 // the setup routine runs once when you press reset:
@@ -128,10 +168,12 @@ void setup()
     pinMode( GROUND_PIN, OUTPUT );
     digitalWrite( GROUND_PIN, LOW );
 
-    for( size_t i = OUTPUT_PINS_START; i < OUTPUT_PINS_END; i ++ )
+    // No PP1 is attached to the pins.
+    for( size_t i = OUTPUT_PINS_START; i < OUTPUT_PINS_START + 6; i ++ )
     {
         pinMode( i, OUTPUT );
         digitalWrite( i, LOW );
+        delay( 10 );
     }
 
 
@@ -156,26 +198,4 @@ void loop()
     // read the input on analog pin 0:
     int sensorValue = analogRead(INPUT_PIN);
     system( sensorValue );
-
-#if 0
-    Serial.print( sensorValue );
-    Serial.print( ' ' );
-    Serial.print( running_mean_ );
-    Serial.print( '\n' );
-    if( sensorValue > (1.1 * running_mean_) )
-    {
-        Serial.println( "Trigger" );
-        for (size_t i = 0; i < 5; i++) 
-        {
-            digitalWrite( 13, HIGH );
-            delay( 30 );
-            digitalWrite( 13, LOW);
-            delay( 30 );
-            
-        }
-    }
-    digitalWrite( 13, LOW );
-    delay(1); 
-#endif 
-
 }
