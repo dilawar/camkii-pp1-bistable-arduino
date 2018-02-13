@@ -14,7 +14,7 @@
  *        License:  GNU GPL2
  */
 
-int speakerPin = 9;
+#include "jackass.h"
 
 int length = 15; // the number of notes
 char notes[] = "ccggaagffeeddc "; // a space represents a rest
@@ -24,9 +24,9 @@ int tempo = 300;
 void playTone(int tone, int duration) 
 {
     for (long i = 0; i < duration * 1000L; i += tone * 2) {
-        digitalWrite(speakerPin, HIGH);
+        digitalWrite(SPEAKER_PIN, HIGH);
         delayMicroseconds(tone);
-        digitalWrite(speakerPin, LOW);
+        digitalWrite(SPEAKER_PIN, LOW);
         delayMicroseconds(tone);
     }
 }
@@ -48,15 +48,6 @@ void playNote(char note, int duration)
     }
 }
 
-void setup( )
-{
-    Serial.begin( 38400 );
-
-    pinMode( speakerPin, OUTPUT );
-    pinMode( 8, OUTPUT );
-    digitalWrite( 8, LOW );
-}
-
 void play( )
 {
     char melody[] = "ccggaag";
@@ -65,23 +56,3 @@ void play( )
         playNote( melody[i], 200 );
 }
 
-
-// the loop routine runs over and over again forever:
-void loop() 
-{
-    if( Serial.available( ) > 0)
-    {
-        int incoming = Serial.read( );
-        Serial.println( incoming );
-
-        if( incoming == 80 )
-        {
-            Serial.println( "Play notes" );
-            play( );
-        }
-        else if( incoming == 65 ) 
-        {
-            playNote( 'a', 80 );
-        }
-    }
-}

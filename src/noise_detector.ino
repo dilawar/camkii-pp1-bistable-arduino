@@ -14,6 +14,9 @@
  *        License:  GNU GPL2
  */
 
+#include "jackass.h"
+#include "Arduino.h"
+
 #define WINDOW_SIZE 20
 
 #define INPUT_PIN   A0
@@ -198,4 +201,22 @@ void loop()
     // read the input on analog pin 0:
     int sensorValue = analogRead(INPUT_PIN);
     system( sensorValue );
+
+
+    if( Serial.available( ) > 0)
+    {
+        int incoming = Serial.read( );
+        Serial.println( incoming );
+
+        if( incoming == 80 )
+        {
+            Serial.println( "Play notes" );
+            play( );
+        }
+        else if( incoming == 65 ) 
+        {
+            playNote( 'a', 80 );
+        }
+    }
+
 }

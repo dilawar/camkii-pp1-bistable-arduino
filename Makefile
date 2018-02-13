@@ -14,11 +14,13 @@ ifeq ($(UNAME_S),Darwin)
     ARDUINO_DIR       = /Applications/Arduino.app/Contents/Java
 else
     ARDUINO_DIR       = $(dir $(shell readlink -f $(ARDUINO_BIN)))
+    ARDUINO_DIR       = /usr/share/arduino
 endif
 
 ### BOARD_TAG
 ### It must be set to the board you are currently using. (i.e uno, mega2560, etc.)
 BOARD_TAG         = uno
+MCU 		  = atmega328p
 
 ### MONITOR_BAUDRATE
 ### It must be set to Serial baudrate value you are using.
