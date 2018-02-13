@@ -52,10 +52,10 @@ OBJDIR            = $(PROJECT_DIR)/bin/$(BOARD_TAG)/$(CURRENT_DIR)
 
 ## INO file and other cpp files
 LOCAL_INO_SRCS     = $(PROJECT_DIR)/src/noise_detector.ino
-LOCAL_CPP_SRCS     = $(PROJECT_DIR)/src/globals.cpp 
+LOCAL_CPP_SRCS     = $(PROJECT_DIR)/src/globals.cpp $(PROJECT_DIR)/src/jackass.cpp
 
 ### Do not touch - the path to Arduino.mk, inside the ARDMK_DIR
 include $(ARDMK_DIR)/Arduino.mk
 
 run : upload
-	miniterm /dev/ttyACM0 38400
+	miniterm.py /dev/ttyACM0 38400
